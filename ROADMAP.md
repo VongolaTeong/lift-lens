@@ -17,7 +17,7 @@ workouts · 40 exercises · Dec 2024 → Jun 2026. Metric account; `set_type` al
 
 | Phase | Name | State |
 |------:|------|-------|
-| 0 | Foundation | [ ] |
+| 0 | Foundation | [x] ✅ build green, 40 exercises seeded, Testcontainers passing |
 | 1 | Ingestion (ETL) | [ ] |
 | 2 | Core analytics | [ ] |
 | 3 | Insight engine + jobs | [ ] |
@@ -34,25 +34,27 @@ workouts · 40 exercises · Dec 2024 → Jun 2026. Metric account; `set_type` al
 Testcontainers harness, and the exercise→muscle seed mapping. No business logic yet.
 
 ### Steps
-- [ ] Gradle (Kotlin DSL) multi-module: root + `:api` (Spring Boot app) + `:analytics`
+- [x] Gradle (Kotlin DSL) multi-module: root + `:api` (Spring Boot app) + `:analytics`
       (pure Java library, **no Spring/DB deps**).
-- [ ] Pin Java LTS toolchain and Spring Boot 3.x BOM; wire `:api` → depends on `:analytics`.
-- [ ] Add dependencies: `spring-boot-starter-web`, `-data-jpa`, `-security`,
-      `-validation`, Flyway, PostgreSQL driver, springdoc-openapi; test: JUnit 5,
-      Testcontainers (`postgresql`, `junit-jupiter`), AssertJ.
-- [ ] `application.yml`: `spring.jpa.hibernate.ddl-auto=validate` (never `update`), Flyway on,
+- [x] Pin Java LTS toolchain (21, foojay auto-provision) and Spring Boot 3.4.1 BOM;
+      wire `:api` → depends on `:analytics`.
+- [x] Add dependencies: `spring-boot-starter-web`, `-data-jpa`, `-security`,
+      `-validation`, Flyway (+`flyway-database-postgresql`), PostgreSQL driver, springdoc-openapi;
+      test: JUnit 5, Testcontainers (`postgresql`, `junit-jupiter`), AssertJ.
+- [x] `application.yml`: `spring.jpa.hibernate.ddl-auto=validate` (never `update`), Flyway on,
       datasource via env vars.
-- [ ] `docker-compose.yml` with Postgres 16 for local dev; document the connection string.
-- [ ] Flyway baseline migration `V1__baseline.sql`: all tables from [CLAUDE.md §3]
+- [x] `docker-compose.yml` with Postgres 16 for local dev (`liftlens`/`liftlens` on `:5432`).
+- [x] Flyway baseline migration `V1__baseline.sql`: all tables from [CLAUDE.md §3]
       (`exercise`, `import_batch`, `workout`, `exercise_set`, `exercise_daily_stat`,
       `exercise_weekly_stat`, `muscle_weekly_volume`, `insight`) + the hot-path indexes.
-      Include `exercise_set.load_basis` and nullable `weight_kg`.
-- [ ] Testcontainers base test (`@SpringBootTest` + `@Testcontainers`) that boots Postgres,
-      runs Flyway, and asserts the schema validates (context loads).
-- [ ] **Lock the CSV schema** — already done; the verified facts live in [CLAUDE.md §2].
-- [ ] Curate the **exercise→muscle seed mapping** for the 40 real exercises (see table below);
-      load via a seed migration `V2__seed_exercises.sql` or an idempotent startup seeder.
-- [ ] CI (GitHub Actions): build + test on push (Testcontainers needs Docker-in-CI).
+      Includes `exercise_set.load_basis`, nullable `weight_kg`, and the `insight`
+      `UNIQUE NULLS NOT DISTINCT` upsert key.
+- [x] Testcontainers test (`@SpringBootTest` + `@Testcontainers` + `@ServiceConnection`) that boots
+      Postgres 16, runs Flyway, and asserts schema + seed + `ddl-auto=validate` all agree.
+- [x] **Lock the CSV schema** — verified facts live in [CLAUDE.md §2].
+- [x] Curate the **exercise→muscle seed mapping** for the 40 real exercises via
+      `V2__seed_exercises.sql`.
+- [x] CI (GitHub Actions): `.github/workflows/ci.yml` builds + tests on push/PR (Docker on runner).
 
 ### Seed mapping notes (the 40 exercises in this export)
 Map each `hevy_name` → `canonical_name`, `primary_muscle`, `secondary_muscles`, `equipment`,
@@ -63,9 +65,9 @@ Map each `hevy_name` → `canonical_name`, `primary_muscle`, `secondary_muscles`
   per set, not per exercise.
 - Unknown Hevy names (future exports) → `primary_muscle = UNKNOWN`, surfaced in the unmapped list.
 
-### Done when
-- `./gradlew build` is green; Testcontainers boots Postgres and Flyway validates.
-- `exercise` table is seeded with all 40 exercises mapped (no `UNKNOWN` for the known set).
+### Done when ✅
+- [x] `./gradlew build` is green; Testcontainers boots Postgres and Flyway validates.
+- [x] `exercise` table is seeded with all 40 exercises mapped (no `UNKNOWN` for the known set).
 
 ---
 
