@@ -15,6 +15,7 @@ import java.nio.file.Path;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 /**
  * Imports the real Hevy export and asserts the locked counts (CLAUDE.md §2): 324 workouts,
@@ -31,6 +32,8 @@ class RealExportIT extends AbstractPostgresIT {
     ExerciseSetRepository setRepository;
     @Autowired
     ExerciseRepository exerciseRepository;
+    @Autowired
+    JdbcTemplate jdbc;
 
     private static byte[] realExportOrNull() throws IOException {
         for (Path candidate : List.of(Path.of("workout_data.csv"), Path.of("..", "workout_data.csv"))) {
@@ -56,6 +59,27 @@ class RealExportIT extends AbstractPostgresIT {
         assertThat(workoutRepository.count()).isEqualTo(324);
         assertThat(setRepository.count()).isEqualTo(6345);
         assertThat(exerciseRepository.count()).isEqualTo(40); // all seeded; no stubs created
+
+        // The import hook materialized the stat tables.
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM exercise_daily_stat", Integer.class)).isPositive();
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM muscle_weekly_volume", Integer.class)).isPositive();
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM exercise_set WHERE is_pr", Integer.class)).isPositive();
+
+        // Pull Up (bodyweight, the REGRESSION example) has a trendable reps series and NO e1RM.
+        Integer pullUpE1rmWeeks = jdbc.queryForObject(
+                "SELECT count(*) FROM exercise_weekly_stat ews JOIN exercise e ON e.id = ews.exercise_id "
+                        + "WHERE e.hevy_name = 'Pull Up' AND ews.best_e1rm IS NOT NULL", Integer.class);
+        assertThat(pullUpE1rmWeeks).isZero();
+        Integer pullUpRepsSlopeWeeks = jdbc.queryForObject(
+                "SELECT count(*) FROM exercise_weekly_stat ews JOIN exercise e ON e.id = ews.exercise_id "
+                        + "WHERE e.hevy_name = 'Pull Up' AND ews.reps_slope IS NOT NULL", Integer.class);
+        assertThat(pullUpRepsSlopeWeeks).isPositive();
+
+        // A weighted barbell lift does have an e1RM trend.
+        Integer squatE1rmWeeks = jdbc.queryForObject(
+                "SELECT count(*) FROM exercise_weekly_stat ews JOIN exercise e ON e.id = ews.exercise_id "
+                        + "WHERE e.hevy_name = 'Squat (Barbell)' AND ews.best_e1rm IS NOT NULL", Integer.class);
+        assertThat(squatE1rmWeeks).isPositive();
 
         // Idempotent re-import of the same file.
         ImportSummary again = importService.importCsv("workout_data.csv", bytes, ImportSource.CSV);
