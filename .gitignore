@@ -1,1 +1,30 @@
-﻿workout_data.csv
+﻿# Personal training data (real Hevy export) — not committed
+workout_data.csv
+
+# Gradle
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.settings/
+.classpath
+.project
+bin/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env / secrets
+.env
+*.local
+
+# Node (frontend, Phase 5)
+node_modules/
+.nuxt/
+.output/
+dist/
