@@ -19,7 +19,7 @@ workouts · 40 exercises · Dec 2024 → Jun 2026. Metric account; `set_type` al
 |------:|------|-------|
 | 0 | Foundation | [x] ✅ build green, 40 exercises seeded, Testcontainers passing |
 | 1 | Ingestion (ETL) | [x] ✅ real export ingests 324/6345/40, idempotent re-import verified |
-| 2 | Core analytics | [ ] |
+| 2 | Core analytics | [x] ✅ window-fn materialization + PR detection; Pull Up reps trend verified |
 | 3 | Insight engine + jobs | [ ] |
 | 4 | API | [ ] |
 | 5 | Frontend | [ ] |
@@ -118,33 +118,37 @@ overlapping export does **not** double-count.
 SQL window functions; PR detection. The bodyweight path must trend Pull Up.
 
 ### Steps (pure math — `:analytics`, no DB)
-- [ ] **e1RM**: Epley `w×(1+reps/30)` (default) and Brzycki `w×36/(37−reps)`; exclude/flag reps > ~12.
-- [ ] **Working volume**: `Σ(weight×reps)` over working sets only.
-- [ ] **Bodyweight progression** (NULL weight): use **reps as the signal** (best-set reps,
-      total reps over window); detectors read this series, not e1RM. Driven by `load_basis`.
-- [ ] **Trend slope**: least-squares linear regression over a trailing window (default 8 weeks)
-      for both the e1RM series (weighted) and the reps series (bodyweight).
-- [ ] All of the above unit-tested in isolation (no Spring, no DB).
+- [x] **e1RM**: Epley + Brzycki with a reliable-rep ceiling
+      ([EstimatedOneRepMax](analytics/src/main/java/com/liftlens/analytics/EstimatedOneRepMax.java)).
+- [x] **Working volume**: `Σ(weight×reps)` over working sets only (materialized in SQL).
+- [x] **Bodyweight progression** (NULL weight): reps series (`best_reps`/`total_reps`/`reps_slope`),
+      driven by `load_basis`; detectors read this instead of e1RM.
+- [x] **Trend slope**: least-squares regression
+      ([LinearRegression](analytics/src/main/java/com/liftlens/analytics/LinearRegression.java)),
+      mirrored in SQL by `regr_slope` over a trailing 8-week window.
+- [x] All unit-tested in isolation (no Spring, no DB) — 9 tests.
 
 ### Steps (materialization — `:api`, SQL/Testcontainers)
-- [ ] `exercise_daily_stat`: per (`exercise_id`,`stat_date`) → `top_working_e1rm`, `working_volume`,
-      `working_sets`, `max_weight`, `total_reps`.
-- [ ] `exercise_weekly_stat`: ISO year/week → `best_e1rm`, `volume`, `sets`, `sessions`,
-      `e1rm_slope` (trailing-window regression).
-- [ ] `muscle_weekly_volume`: per muscle/week → `working_volume`, `set_count`, `session_count`.
-- [ ] Compute moving averages / deltas in **SQL** with `LAG()` and `AVG() OVER (... ROWS BETWEEN ...)`
-      (deliberately in Postgres — it's part of the signal).
-- [ ] **Incremental + idempotent** recompute scoped to a date range (re-running yields identical rows).
-- [ ] **PR detection**: flag `exercise_set.is_pr` for new max weight / max e1RM / max volume.
+- [x] `exercise_daily_stat` and `exercise_weekly_stat` (+ V3 reps columns) and `muscle_weekly_volume`
+      via [StatsRecomputeService](api/src/main/java/com/liftlens/stats/StatsRecomputeService.java).
+- [~] Trend computed in **SQL** with window functions (`regr_slope ... OVER (... RANGE BETWEEN 7
+      PRECEDING ...)`). Explicit `LAG()`/`AVG()` moving-average deltas deferred until a consumer
+      (API/detectors) needs them.
+- [x] **Incremental + idempotent** recompute scoped to date range (daily/muscle) + affected
+      exercises (weekly, full history for correct slopes); re-run yields identical rows. Wired into
+      the import hook (completes the Phase 1 TODO).
+- [x] **PR detection**: [PrScanService](api/src/main/java/com/liftlens/stats/PrScanService.java) flags
+      `is_pr` for new max weight / e1RM / volume (weighted) or max reps (bodyweight) via window fns.
 
-### Tests
-- [ ] e1RM/volume/slope golden-value unit tests.
-- [ ] Bodyweight: Pull Up produces a non-empty reps-based trend (the REGRESSION example must have data).
-- [ ] Window-function queries verified against seeded fixtures (Testcontainers).
-- [ ] Recompute idempotency: run twice → identical materialized rows.
+### Tests ✅ (32 green total, 0 skipped)
+- [x] e1RM/slope golden-value unit tests.
+- [x] Bodyweight: Pull Up produces a non-empty reps-based trend and NO e1RM (real + crafted data).
+- [x] Window-function materialization verified against fixtures (Testcontainers) — daily e1RM matches
+      the analytics formula, weekly slopes positive on rising series, PRs flagged.
+- [x] Recompute idempotency: run twice → identical materialized rows.
 
-### Done when
-- Materialized tables populate from the real data; Pull Up has a trendable series; PRs flagged.
+### Done when ✅
+- [x] Materialized tables populate from the real data; Pull Up has a trendable series; PRs flagged.
 
 ---
 
