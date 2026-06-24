@@ -18,7 +18,7 @@ workouts · 40 exercises · Dec 2024 → Jun 2026. Metric account; `set_type` al
 | Phase | Name | State |
 |------:|------|-------|
 | 0 | Foundation | [x] ✅ build green, 40 exercises seeded, Testcontainers passing |
-| 1 | Ingestion (ETL) | [ ] |
+| 1 | Ingestion (ETL) | [x] ✅ real export ingests 324/6345/40, idempotent re-import verified |
 | 2 | Core analytics | [ ] |
 | 3 | Insight engine + jobs | [ ] |
 | 4 | API | [ ] |
@@ -77,39 +77,38 @@ Map each `hevy_name` → `canonical_name`, `primary_muscle`, `secondary_muscles`
 overlapping export does **not** double-count.
 
 ### Steps
-- [ ] **CSV reader** (e.g. Apache Commons CSV / Jackson CSV) tolerant of quoted fields,
-      embedded commas (`Seated Cable Row - Bar Wide Grip`), and empty trailing columns.
-- [ ] **Unit detection** from the header: `weight_kg`/`distance_km` vs `weight_lbs`/`distance_miles`;
-      normalize to **kg + metres** at the ingestion boundary only.
-- [ ] **Date parsing**: `d MMM yyyy, HH:mm` with `Locale.ENGLISH` (non-padded day, e.g. `1 Feb 2026`).
-- [ ] **Checksum**: sha256 the raw file → `import_batch.checksum`; if it exists, short-circuit
-      with "already imported" (HTTP 200 + existing batch summary).
-- [ ] **Group** rows into workouts by (`title`,`start_time`); compute `hevy_natural_key`
-      (hash of title+start_time).
-- [ ] **Upsert workouts** on `hevy_natural_key` (idempotent).
-- [ ] **Resolve exercises**: `exercise_title` → `exercise`; create a stub flagged for mapping if unknown.
-- [ ] **Insert sets**: map columns; keep `weight_kg` NULL for bodyweight (never coerce to 0);
-      derive `is_working` (not warmup) and `load_basis` (`WEIGHTED` if `weight_kg` present else `BODYWEIGHT`).
-- [ ] **Set-level dedupe** within a workout on (`workout`,`exercise`,`set_index`) so overlapping
-      re-exports update rather than duplicate.
-- [ ] **Classify `split_category`** by majority vote of the workout's exercises' primary muscles
-      (push→PUSH, pull→PULL, mixed upper→UPPER, legs→LOWER, ties/unknown→OTHER). Remember
-      `Push pull` titles are genuinely mixed — never trust the title.
-- [ ] **Enqueue incremental recompute** for the affected date range only (hand off to Phase 2 job).
-- [ ] Return a **batch summary**: workouts added/updated, sets inserted, unknown exercises needing mapping.
+- [x] **CSV reader** (Apache Commons CSV) tolerant of quoted fields, embedded commas, and empty
+      cells — [HevyCsvParser](api/src/main/java/com/liftlens/ingest/HevyCsvParser.java).
+- [x] **Unit detection** from the header: `weight_kg`/`distance_km` vs `weight_lbs`/`distance_miles`;
+      normalized to **kg + metres** at the ingestion boundary only.
+- [x] **Date parsing**: `d MMM yyyy, HH:mm` with `Locale.ENGLISH` (non-padded day, e.g. `1 Feb 2026`).
+- [x] **Checksum**: sha256 the raw file → `import_batch.checksum`; if it exists, short-circuit
+      with `ALREADY_IMPORTED` + existing batch summary.
+- [x] **Group** rows into workouts by (`title`,`start_time`); compute `hevy_natural_key`.
+- [x] **Upsert workouts** on `hevy_natural_key` (idempotent).
+- [x] **Resolve exercises**: `exercise_title` → `exercise`; create a stub flagged for mapping if unknown.
+- [x] **Insert sets**: keep `weight_kg` NULL for bodyweight (never coerce to 0);
+      derive `is_working` (not warmup) and `load_basis`.
+- [x] **Set-level dedupe** on (`workout`,`exercise`,`set_index`) so overlapping re-exports don't duplicate.
+- [x] **Classify `split_category`** by majority vote of primary muscles
+      ([SplitClassifier](api/src/main/java/com/liftlens/ingest/SplitClassifier.java)) — title never trusted.
+- [~] **Enqueue incremental recompute** for the affected date range — affected range is computed and
+      logged as a hook; Phase 2 wires the actual recompute (`TODO(Phase 2)` in `ImportService`).
+- [x] Return a **batch summary**
+      ([ImportSummary](api/src/main/java/com/liftlens/ingest/ImportSummary.java)).
+- [x] `POST /api/imports` controller + temporary permit-all `SecurityConfig` (Phase 4 adds the token).
 
-### Tests
-- [ ] Parse the real `workout_data.csv` → exactly **324 workouts, 6,345 sets, 40 exercises**.
-- [ ] **Idempotency**: import the same file twice → 2nd import is a no-op (checksum short-circuit),
-      counts unchanged.
-- [ ] **Overlap idempotency**: import file A, then a superset file A′ that re-includes A's rows →
-      no duplicate workouts/sets; only new rows added.
-- [ ] Bodyweight rows land with `weight_kg IS NULL` and `load_basis = BODYWEIGHT`.
-- [ ] Unit detection: a synthetic lbs-header file normalizes correctly to kg.
-- [ ] Date edge: non-padded day parses; `lbs`/`miles` header variant handled.
+### Tests ✅ (19 green, 0 skipped)
+- [x] Parse the real `workout_data.csv` → exactly **324 workouts, 6,345 sets, 40 exercises**
+      ([RealExportIT](api/src/test/java/com/liftlens/RealExportIT.java)).
+- [x] **Idempotency**: import the same file twice → 2nd is a no-op (checksum), counts unchanged.
+- [x] **Overlap idempotency**: file A then a superset of A → only new rows added.
+- [x] Bodyweight rows land with `weight_kg IS NULL` and `load_basis = BODYWEIGHT`.
+- [x] Unit detection: a synthetic lbs-header file normalizes to kg; km→metres.
+- [x] Date edge: non-padded day parses; missing-required-column rejected.
 
-### Done when
-- Re-import is provably a no-op (test) and the real file produces the expected counts.
+### Done when ✅
+- [x] Re-import is provably a no-op (test) and the real file produces the expected counts.
 
 ---
 
