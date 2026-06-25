@@ -29,6 +29,12 @@ springdoc:
   swagger-ui:
     path: /swagger-ui.html
 
+liftlens:
+  internal:
+    # Shared secret the external cron sends as the X-Internal-Token header to POST /internal/jobs/*.
+    token: ${INTERNAL_TOKEN:dev-internal-token}
+  # insights.* detector thresholds use code defaults (InsightProperties); override here if needed.
+
 logging:
   level:
     org.flywaydb: info
