@@ -27,6 +27,7 @@ abstract class AbstractPostgresIT {
 
     @BeforeEach
     void resetFactTables() {
+        jdbcTemplate.execute("DELETE FROM insight");
         jdbcTemplate.execute("DELETE FROM exercise_daily_stat");
         jdbcTemplate.execute("DELETE FROM exercise_weekly_stat");
         jdbcTemplate.execute("DELETE FROM muscle_weekly_volume");

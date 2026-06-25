@@ -68,4 +68,10 @@ public class PrScanService {
         }
         jdbc.update(SCAN_SQL, Map.of("ids", exerciseIds));
     }
+
+    /** Re-scan PR flags across every exercise (the {@code prScanJob} entry point). */
+    @Transactional
+    public void scanAll() {
+        scan(jdbc.getJdbcTemplate().queryForList("SELECT id FROM exercise", Long.class));
+    }
 }

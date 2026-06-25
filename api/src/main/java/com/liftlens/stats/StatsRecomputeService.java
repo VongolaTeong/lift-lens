@@ -134,6 +134,12 @@ public class StatsRecomputeService {
         this.prScanService = prScanService;
     }
 
+    /** Full refresh across every exercise (the nightly {@code recomputeStatsJob} entry point). */
+    @Transactional
+    public void recomputeAll() {
+        recomputeAll(jdbc.getJdbcTemplate().queryForList("SELECT id FROM exercise", Long.class));
+    }
+
     /** Full refresh of every materialized table for the given exercises (all of them, normally). */
     @Transactional
     public void recomputeAll(Collection<Long> allExerciseIds) {
