@@ -20,7 +20,7 @@ workouts · 40 exercises · Dec 2024 → Jun 2026. Metric account; `set_type` al
 | 0 | Foundation | [x] ✅ build green, 40 exercises seeded, Testcontainers passing |
 | 1 | Ingestion (ETL) | [x] ✅ real export ingests 324/6345/40, idempotent re-import verified |
 | 2 | Core analytics | [x] ✅ window-fn materialization + PR detection; Pull Up reps trend verified |
-| 3 | Insight engine + jobs | [ ] |
+| 3 | Insight engine + jobs | [x] ✅ 7 detectors + upsert/resolve + scheduled & token-gated jobs |
 | 4 | API | [ ] |
 | 5 | Frontend | [ ] |
 | 6 | Ship | [ ] |
@@ -158,35 +158,37 @@ SQL window functions; PR detection. The bodyweight path must trend Pull Up.
 jobs with the free-tier external-cron fallback.
 
 ### Steps (detectors — `InsightDetector` strategy, open/closed)
-- [ ] Define `InsightDetector` interface; each detector reads materialized stats, writes insights.
-- [ ] `PLATEAU` — `|e1rm_slope|` below ε over window AND ≥ N data points.
-- [ ] `REGRESSION` — slope significantly negative (validate against the Pull Up reps series).
-- [ ] `PROGRESS` — slope strongly positive.
-- [ ] `IMBALANCE` — antagonist/related weekly-volume ratio outside target band.
-- [ ] `NEGLECT` — a primary muscle below min weekly sets for ≥ N weeks.
-- [ ] `DROPOFF` — an exercise once regular, now lapsed > X sessions.
-- [ ] `PR` — surfaced from Phase 2 PR flags.
-- [ ] Thresholds in config (not hardcoded).
-- [ ] **Upsert** on (`type`,`exercise_id`,`muscle`,`window_end`); **resolve** insights whose
-      condition no longer holds (status → RESOLVED).
+- [x] [InsightDetector](api/src/main/java/com/liftlens/insight/InsightDetector.java) interface;
+      each reads materialized stats via [StatsReadService](api/src/main/java/com/liftlens/insight/StatsReadService.java).
+- [x] `PLATEAU`, `REGRESSION` (validated on the Pull Up reps series), `PROGRESS` — slope thresholds,
+      ≥ N points, stale-data guard ([detector/](api/src/main/java/com/liftlens/insight/detector/)).
+- [x] `IMBALANCE` (antagonist set-count ratio — set-based so bodyweight pulling counts fairly),
+      `NEGLECT` (sets/window below threshold), `DROPOFF` (lapsed lift), `PR` (from Phase 2 flags).
+- [x] Thresholds in config ([InsightProperties](api/src/main/java/com/liftlens/insight/InsightProperties.java),
+      `liftlens.insights.*`).
+- [x] **Upsert** on the natural key (jsonb `ON CONFLICT`); **resolve** ACTIVE insights no detector
+      re-emitted ([InsightDetectionService](api/src/main/java/com/liftlens/insight/InsightDetectionService.java)).
 
 ### Steps (jobs — all idempotent)
-- [ ] `recomputeStatsJob` — nightly + on-import (affected range only).
-- [ ] `detectInsightsJob` — weekly (e.g. Sun 22:00): run all detectors, upsert + resolve.
-- [ ] `prScanJob` — on-import: flag `is_pr`, raise `PR` insights.
-- [ ] `@Scheduled` for local/always-on **and** token-protected `POST /internal/jobs/{jobName}`.
-- [ ] External cron (GitHub Actions / cron-job.org) calling the endpoint with a secret header;
-      document both paths.
+- [x] `recomputeStatsJob` — nightly @Scheduled + on-import (affected range only, Phase 2 hook).
+- [x] `detectInsightsJob` — weekly @Scheduled (Sun 22:00): run all detectors, upsert + resolve.
+- [x] `prScanJob` — on-import; also exposed as a triggerable job.
+- [x] `@Scheduled` ([ScheduledJobs](api/src/main/java/com/liftlens/job/ScheduledJobs.java)) **and**
+      token-protected `POST /internal/jobs/{jobName}` ([InternalJobController](api/src/main/java/com/liftlens/web/InternalJobController.java)
+      + [InternalTokenFilter](api/src/main/java/com/liftlens/config/InternalTokenFilter.java)) →
+      same [JobService](api/src/main/java/com/liftlens/job/JobService.java).
+- [~] External cron wiring (GitHub Actions / cron-job.org) — endpoint + token ready; the actual cron
+      job is set up at deploy (Phase 6).
 
-### Tests
-- [ ] Each detector: positive + negative fixture (fires when it should, silent otherwise).
-- [ ] Resolve lifecycle: condition clears → insight flips to RESOLVED on next run.
-- [ ] Re-running a job (both `@Scheduled` and `/internal` paths) does not duplicate insights.
-- [ ] Adding a new detector requires **no change** to existing ones.
+### Tests ✅ (40 green total, 0 skipped)
+- [x] Crafted history triggers all 7 types; idempotent re-run keeps insight count stable.
+- [x] Resolve lifecycle: an ACTIVE insight no detector re-emits flips to RESOLVED.
+- [x] Internal endpoint: 401 without/with wrong token, 200 with token, 404 unknown job.
+- [x] Registry: every `InsightType` has exactly one registered detector (open/closed).
 
-### Done when
-- All detectors run on real data, produce sane insights (incl. the Pull Up regression),
-  and re-runs are idempotent via both invocation paths.
+### Done when ✅
+- [x] All detectors run (crafted + real data), produce sane insights incl. the Pull Up regression,
+      and re-runs are idempotent via both invocation paths.
 
 ---
 
