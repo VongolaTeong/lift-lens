@@ -21,7 +21,7 @@ workouts · 40 exercises · Dec 2024 → Jun 2026. Metric account; `set_type` al
 | 1 | Ingestion (ETL) | [x] ✅ real export ingests 324/6345/40, idempotent re-import verified |
 | 2 | Core analytics | [x] ✅ window-fn materialization + PR detection; Pull Up reps trend verified |
 | 3 | Insight engine + jobs | [x] ✅ 7 detectors + upsert/resolve + scheduled & token-gated jobs |
-| 4 | API | [ ] |
+| 4 | API | [x] ✅ full REST surface, record DTOs, token-guarded writes, OpenAPI/Swagger |
 | 5 | Frontend | [ ] |
 | 6 | Ship | [ ] |
 | 7 | Hevy API live sync (optional) | [ ] |
@@ -197,25 +197,40 @@ jobs with the free-tier external-cron fallback.
 **Goal:** the REST surface from [CLAUDE.md §7], DTOs as records, OpenAPI docs, token auth.
 
 ### Steps
-- [ ] DTOs as Java **records**; never expose entities.
-- [ ] `POST /api/imports` (multipart) → batch summary.
-- [ ] `GET /api/dashboard/summary` — this week vs last: volume by muscle, active insights, recent PRs.
-- [ ] `GET /api/exercises` (with mapping status) · `GET /api/exercises/unmapped` ·
-      `PUT /api/exercises/{id}/mapping`.
-- [ ] `GET /api/exercises/{id}/trend?weeks=` — e1RM + volume (or reps for bodyweight) series.
-- [ ] `GET /api/workouts?from=&to=` · `GET /api/muscles/volume?weeks=`.
-- [ ] `GET /api/insights?status=active` · `POST /api/insights/{id}/dismiss`.
-- [ ] `POST /internal/jobs/{jobName}` (token-protected).
-- [ ] **Auth**: Spring Security single static API token (one principal); protect writes + `/internal/*`.
-- [ ] springdoc-openapi → Swagger UI; annotate endpoints/DTOs.
+- [x] DTOs as Java **records** ([web/dto/](api/src/main/java/com/liftlens/web/dto/)); entities never exposed.
+- [x] `POST /api/imports` (multipart) → batch summary
+      ([ImportController](api/src/main/java/com/liftlens/web/ImportController.java)); now token-guarded.
+- [x] `GET /api/dashboard/summary` — this week vs last: volume by muscle, active insights, recent PRs
+      ([DashboardController](api/src/main/java/com/liftlens/web/DashboardController.java) +
+      [DashboardQueryService](api/src/main/java/com/liftlens/query/DashboardQueryService.java)).
+- [x] `GET /api/exercises` (with mapping status) · `GET /api/exercises/unmapped` ·
+      `PUT /api/exercises/{id}/mapping` ([ExerciseController](api/src/main/java/com/liftlens/web/ExerciseController.java),
+      mapping via [ExerciseMappingService](api/src/main/java/com/liftlens/query/ExerciseMappingService.java) +
+      `Exercise.applyMapping`).
+- [x] `GET /api/exercises/{id}/trend?weeks=` — e1RM + volume (or reps for bodyweight) series; `weighted`
+      flag tells the UI which series to plot.
+- [x] `GET /api/workouts?from=&to=` ([WorkoutController](api/src/main/java/com/liftlens/web/WorkoutController.java)) ·
+      `GET /api/muscles/volume?weeks=` ([MuscleController](api/src/main/java/com/liftlens/web/MuscleController.java)).
+- [x] `GET /api/insights?status=active` · `POST /api/insights/{id}/dismiss`
+      ([InsightController](api/src/main/java/com/liftlens/web/InsightController.java)).
+- [x] `POST /internal/jobs/{jobName}` (token-protected) — from Phase 3, unchanged.
+- [x] **Auth**: single static API token, one `ROLE_API` principal
+      ([ApiTokenAuthFilter](api/src/main/java/com/liftlens/config/ApiTokenAuthFilter.java) +
+      [SecurityConfig](api/src/main/java/com/liftlens/config/SecurityConfig.java)): reads public, writes on
+      `/api/**` require `X-API-Token` (401 otherwise); `/internal/*` keeps its own shared-secret guard.
+- [x] springdoc-openapi → Swagger UI; `@Tag`/`@Operation` on endpoints + API-token security scheme
+      ([OpenApiConfig](api/src/main/java/com/liftlens/config/OpenApiConfig.java)). Errors normalized by
+      [ApiExceptionHandler](api/src/main/java/com/liftlens/web/ApiExceptionHandler.java) (404/400).
 
-### Tests
-- [ ] `@WebMvcTest`/slice tests per endpoint (happy path + auth required on writes/internal).
-- [ ] Trend endpoint returns the reps series for a bodyweight exercise.
-- [ ] OpenAPI spec generates and is served.
+### Tests ✅ (57 green total, 0 skipped)
+- [x] Slice tests per endpoint (happy path) + auth required on writes (import/dismiss/mapping → 401
+      without token) ([ApiEndpointsIT](api/src/test/java/com/liftlens/ApiEndpointsIT.java)).
+- [x] Trend endpoint returns the reps series (no e1RM) for a bodyweight exercise; e1RM series for a
+      weighted one. 404s for unknown exercise/insight; 400 for invalid mapping body / bad status.
+- [x] OpenAPI spec generates and is served at `/v3/api-docs` (asserts the path entries).
 
-### Done when
-- All endpoints work end-to-end against seeded data; Swagger UI lists them; writes require the token.
+### Done when ✅
+- [x] All endpoints work end-to-end against seeded data; OpenAPI lists them; writes require the token.
 
 ---
 
