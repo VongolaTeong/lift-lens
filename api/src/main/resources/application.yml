@@ -30,6 +30,9 @@ springdoc:
     path: /swagger-ui.html
 
 liftlens:
+  api:
+    # Static API token protecting writes (POST/PUT/DELETE /api/**) via the X-API-Token header.
+    token: ${API_TOKEN:dev-api-token}
   internal:
     # Shared secret the external cron sends as the X-Internal-Token header to POST /internal/jobs/*.
     token: ${INTERNAL_TOKEN:dev-internal-token}

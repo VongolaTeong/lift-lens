@@ -74,6 +74,19 @@ public class Exercise {
         return UNKNOWN_MUSCLE.equals(primaryMuscle);
     }
 
+    /**
+     * Assigns this exercise's muscle mapping (admin action behind {@code PUT /api/exercises/{id}/mapping}).
+     * Mutated through a domain method rather than open setters so the entity controls its invariants.
+     */
+    public void applyMapping(String primaryMuscle, List<String> secondaryMuscles, String equipment,
+            MovementType movementType, boolean unilateral) {
+        this.primaryMuscle = primaryMuscle;
+        this.secondaryMuscles = secondaryMuscles == null ? new ArrayList<>() : new ArrayList<>(secondaryMuscles);
+        this.equipment = equipment;
+        this.movementType = movementType == null ? MovementType.UNKNOWN : movementType;
+        this.unilateral = unilateral;
+    }
+
     public Long getId() {
         return id;
     }
