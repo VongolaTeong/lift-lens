@@ -22,7 +22,7 @@ workouts · 40 exercises · Dec 2024 → Jun 2026. Metric account; `set_type` al
 | 2 | Core analytics | [x] ✅ window-fn materialization + PR detection; Pull Up reps trend verified |
 | 3 | Insight engine + jobs | [x] ✅ 7 detectors + upsert/resolve + scheduled & token-gated jobs |
 | 4 | API | [x] ✅ full REST surface, record DTOs, token-guarded writes, OpenAPI/Swagger |
-| 5 | Frontend | [ ] |
+| 5 | Frontend | [x] ✅ Nuxt 3 SPA, 5 views, vue-echarts, Pinia, typed client; live-verified vs real data |
 | 6 | Ship | [ ] |
 | 7 | Hevy API live sync (optional) | [ ] |
 
@@ -239,19 +239,31 @@ jobs with the free-tier external-cron fallback.
 **Goal:** the polished demo surface — the resume screenshot.
 
 ### Steps
-- [ ] Nuxt 3 + TS scaffold; Pinia for state; API client **typed from the OpenAPI schema**.
-- [ ] **Dashboard**: this-week volume per muscle vs last week, active-insight cards (color by
-      severity), recent PRs.
-- [ ] **Exercise detail**: e1RM/volume trend (or reps trend for bodyweight) via vue-echarts,
-      PR history, raw set table with filters.
-- [ ] **Muscle balance**: weekly volume per muscle, target vs actual, neglect highlights.
-- [ ] **Insights feed**: list + dismiss; deep-link to the relevant exercise.
-- [ ] **Import**: drag-drop CSV → batch result + unmapped-exercise prompts.
-- [ ] Handle the bodyweight case in charts (label "reps progression" when no e1RM).
-- [ ] Loading/empty/error states; responsive layout.
+- [x] Nuxt 3 + TS scaffold ([frontend/](frontend/), SPA `ssr:false` for Cloudflare Pages); **Pinia**
+      stores per resource ([frontend/stores/](frontend/stores/)); typed `$fetch` client
+      ([useApi](frontend/composables/useApi.ts)) against the API contract
+      ([types/api.ts](frontend/types/api.ts), regen via `npm run gen:api` from `/v3/api-docs`).
+- [x] **Dashboard** ([pages/index.vue](frontend/pages/index.vue)): this-week vs last-week volume per
+      muscle (grouped bars), active-insight cards coloured by severity, recent PRs, headline stats.
+- [x] **Exercise detail** ([pages/exercises/[id].vue](frontend/pages/exercises/[id].vue)): e1RM+volume
+      trend (or reps trend for bodyweight) via vue-echarts with a PR marker, weekly breakdown table.
+      (Per-set raw rows aren't an API endpoint; the weekly breakdown is the detail view.)
+- [x] **Muscle balance** ([pages/muscles.vue](frontend/pages/muscles.vue)): weekly volume per muscle
+      (multi-line, volume/sets toggle), balance bars over the window, low-volume (neglect) highlights.
+- [x] **Insights feed** ([pages/insights.vue](frontend/pages/insights.vue)): status tabs + dismiss;
+      cards deep-link to the relevant exercise/muscle.
+- [x] **Import** ([pages/import.vue](frontend/pages/import.vue)): drag-drop CSV → batch summary +
+      unmapped-exercise prompts; recent-sessions table.
+- [x] Bodyweight handled in charts/tables (labelled "reps progression" when there's no e1RM).
+- [x] Loading/empty/error states ([StateWrapper](frontend/components/StateWrapper.vue)); responsive grid.
+- [x] CORS enabled on the API ([SecurityConfig](api/src/main/java/com/liftlens/config/SecurityConfig.java))
+      so the browser SPA can call it (incl. the `X-API-Token` write header).
 
-### Done when
-- All five views render against the live API with the real data and look portfolio-grade.
+### Done when ✅
+- [x] `npm run build` / `generate` + `vue-tsc` typecheck all green; static bundle in `.output/public`.
+- [x] Live-verified against the real export (324 workouts / 6,345 sets): dashboard, exercises (40),
+      insights (36 active), muscle volume (95 pts), and the Pull Up bodyweight reps trend all return
+      populated data; CORS preflight from `:3000` passes.
 
 ---
 
