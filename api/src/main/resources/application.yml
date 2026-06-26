@@ -33,6 +33,9 @@ liftlens:
   api:
     # Static API token protecting writes (POST/PUT/DELETE /api/**) via the X-API-Token header.
     token: ${API_TOKEN:dev-api-token}
+  cors:
+    # Browser origins allowed to call the API (the Nuxt frontend). Comma-separated for multiple.
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000}
   internal:
     # Shared secret the external cron sends as the X-Internal-Token header to POST /internal/jobs/*.
     token: ${INTERNAL_TOKEN:dev-internal-token}
