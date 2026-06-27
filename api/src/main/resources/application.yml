@@ -1,3 +1,7 @@
+server:
+  # Bind the platform-provided port in production (Railway/Koyeb inject PORT); 8080 locally.
+  port: ${PORT:8080}
+
 spring:
   application:
     name: lift-lens

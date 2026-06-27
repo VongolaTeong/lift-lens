@@ -271,12 +271,20 @@ jobs with the free-tier external-cron fallback.
 
 **Goal:** deployed, seeded with real ~18 months of data, with a README that pays off the resume.
 
+> **Deploy scaffolding is in place** — full step-by-step in [DEPLOYMENT.md](DEPLOYMENT.md): API
+> [`Dockerfile`](Dockerfile) (builds `app.jar`, Docker build verified through the in-container Gradle
+> step), `server.port=${PORT}` for Render/Railway, a Render Blueprint ([render.yaml](render.yaml)),
+> Pages SPA fallback
+> ([`frontend/public/_redirects`](frontend/public/_redirects)) + [`.nvmrc`](frontend/.nvmrc), and the
+> external-cron workflow ([`.github/workflows/cron.yml`](.github/workflows/cron.yml)). The boxes below
+> stay unchecked until the live deploy is actually run with real accounts.
+
 ### Steps
-- [ ] Provision **Neon** (Postgres); run Flyway on deploy.
-- [ ] Deploy `:api` to **Koyeb/Railway**; configure env (DB URL, API token, job secret).
-- [ ] Deploy Nuxt to **Cloudflare Pages**; point at the API.
-- [ ] Wire the **external cron** (GitHub Actions / cron-job.org) at the deployed `/internal/jobs/*`.
-- [ ] Seed production with the real export; verify counts + insights.
+- [ ] Provision **Neon** (Postgres); run Flyway on deploy. — *steps written; Flyway runs on boot.*
+- [ ] Deploy `:api` to **Render** (no card; Koyeb/Railway as alternatives); configure env (DB URL, API token, job secret). — *Dockerfile + render.yaml ready.*
+- [ ] Deploy Nuxt to **Cloudflare Pages**; point at the API. — *build settings + SPA fallback ready.*
+- [ ] Wire the **external cron** (GitHub Actions / cron-job.org) at the deployed `/internal/jobs/*`. — *workflow ready.*
+- [ ] Seed production with the real export; verify counts + insights. — *commands documented.*
 - [ ] **README**: one-paragraph what+why with **live demo link**; architecture diagram
       (ingest → normalize → materialize → detect → API → UI); "key decisions" (scheduled
       materialization + window functions, idempotent ingestion, detector-strategy pattern,
