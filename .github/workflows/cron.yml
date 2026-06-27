@@ -1,0 +1,35 @@
+name: Scheduled jobs
+
+# Drives the idempotent jobs externally so they fire even when the free-tier API host is asleep
+# (CLAUDE.md §6). The first request also wakes the host. Configure two repo secrets:
+#   API_BASE_URL    e.g. https://liftlens-api.onrender.com   (no trailing slash)
+#   INTERNAL_TOKEN  the same value as the API's INTERNAL_TOKEN env var
+on:
+  schedule:
+    - cron: '0 18 * * *'   # nightly 18:00 UTC — recompute materialized stats
+    - cron: '0 14 * * 0'   # Sunday 14:00 UTC — run insight detectors
+  workflow_dispatch:        # allow manual runs from the Actions tab
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Recompute stats (nightly + manual)
+        if: github.event.schedule == '0 18 * * *' || github.event_name == 'workflow_dispatch'
+        run: |
+          curl --fail --silent --show-error --retry 5 --retry-all-errors --max-time 120 \
+            -X POST "${API_BASE_URL}/internal/jobs/recompute-stats" \
+            -H "X-Internal-Token: ${INTERNAL_TOKEN}"
+        env:
+          API_BASE_URL: ${{ secrets.API_BASE_URL }}
+          INTERNAL_TOKEN: ${{ secrets.INTERNAL_TOKEN }}
+
+      - name: Detect insights (weekly + manual)
+        if: github.event.schedule == '0 14 * * 0' || github.event_name == 'workflow_dispatch'
+        run: |
+          curl --fail --silent --show-error --retry 5 --retry-all-errors --max-time 120 \
+            -X POST "${API_BASE_URL}/internal/jobs/detect-insights" \
+            -H "X-Internal-Token: ${INTERNAL_TOKEN}"
+        env:
+          API_BASE_URL: ${{ secrets.API_BASE_URL }}
+          INTERNAL_TOKEN: ${{ secrets.INTERNAL_TOKEN }}

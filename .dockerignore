@@ -1,0 +1,13 @@
+# Keep the API image build context small and reproducible.
+.git
+.github
+**/build
+**/.gradle
+**/node_modules
+frontend
+.nuxt
+.output
+*.md
+workout_data.csv
+.idea
+.vscode

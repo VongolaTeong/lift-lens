@@ -1,0 +1,28 @@
+# Render Blueprint for the LiftLens API (https://render.com/docs/blueprint-spec).
+# Deploy with: Render Dashboard → New → Blueprint → pick this repo.
+# Secrets (sync:false) are left blank here and filled in the dashboard; set CORS_ALLOWED_ORIGINS
+# to your Cloudflare Pages URL once the frontend is deployed.
+services:
+  - type: web
+    name: liftlens-api
+    runtime: docker
+    plan: free
+    region: singapore
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /v3/api-docs
+    autoDeploy: true
+    envVars:
+      - key: DB_URL
+        sync: false
+      - key: DB_USERNAME
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: API_TOKEN
+        sync: false
+      - key: INTERNAL_TOKEN
+        sync: false
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false
+      - key: JAVA_TOOL_OPTIONS
+        value: -XX:MaxRAMPercentage=70
