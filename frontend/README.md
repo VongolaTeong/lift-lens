@@ -1,5 +1,7 @@
 # LiftLens — Frontend (Nuxt 3)
 
+Live Demo: https://4f109c0e.lift-lens.pages.dev/
+
 The demo surface for [LiftLens](../CLAUDE.md): a polished analytics dashboard over the REST API.
 Built with **Nuxt 3 + TypeScript**, **Pinia** for state, and **vue-echarts** (Apache ECharts) for charts.
 Deploys as a static SPA to Cloudflare Pages.
